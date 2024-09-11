@@ -1,0 +1,383 @@
+\timing
+Timing is on.
+-- GROUP: cit11, MEMBERS: Ida Hay Jørgensen, Julius Krüger Madsen, Marek Laslo, Sofus Hilfling Nielsen
+-- 1
+SELECT "name" 
+FROM instructor 
+WHERE dept_name = 'Biology';
+   name   
+----------
+ Queiroz
+ Valtchev
+(2 rows)
+
+Time: 3,175 ms
+
+-- 2
+SELECT title 
+FROM course 
+WHERE dept_name = 'Comp. Sci.' AND credits = 3;
+         title         
+-----------------------
+ International Finance
+ Japanese
+ Computability Theory
+(3 rows)
+
+Time: 2,264 ms
+
+-- 3
+SELECT DISTINCT course_id, title 
+FROM takes
+NATURAL JOIN course
+WHERE id = '30397';
+ course_id |          title           
+-----------+--------------------------
+ 200       | The Music of the Ramones
+ 349       | Networking
+ 702       | Arabic
+ 642       | Video Gaming
+ 631       | Plasma Physics
+ 795       | Death and Taxes
+ 960       | Tort Law
+ 468       | Fractal Geometry
+ 319       | World History
+ 760       | How to Groom your Cat
+ 496       | Aquatic Chemistry
+ 626       | Multimedia Design
+ 105       | Image Processing
+ 158       | Elastic Structures
+ 461       | Physical Chemistry
+ 959       | Bacteriology
+(16 rows)
+
+Time: 3,098 ms
+
+-- 4
+SELECT course_id, title, SUM(credits) 
+FROM takes
+NATURAL JOIN course
+WHERE id = '30397'
+GROUP BY course_id, title;
+ course_id |          title           | sum 
+-----------+--------------------------+-----
+ 200       | The Music of the Ramones |   4
+ 349       | Networking               |   4
+ 702       | Arabic                   |   3
+ 642       | Video Gaming             |   3
+ 631       | Plasma Physics           |   4
+ 795       | Death and Taxes          |   3
+ 960       | Tort Law                 |   3
+ 468       | Fractal Geometry         |   8
+ 319       | World History            |   4
+ 760       | How to Groom your Cat    |   3
+ 496       | Aquatic Chemistry        |   3
+ 626       | Multimedia Design        |   4
+ 105       | Image Processing         |   6
+ 158       | Elastic Structures       |   3
+ 461       | Physical Chemistry       |   3
+ 959       | Bacteriology             |   4
+(16 rows)
+
+Time: 2,713 ms
+
+-- 5
+SELECT id, SUM(credits) 
+FROM takes
+NATURAL JOIN course
+GROUP BY id
+HAVING SUM(credits) > 85;
+  id   | sum 
+-------+-----
+ 72669 |  87
+ 50039 |  86
+ 47379 |  86
+ 107   |  86
+ 44551 |  87
+ 12078 |  93
+(6 rows)
+
+Time: 20,163 ms
+
+-- 6
+SELECT DISTINCT "name" 
+FROM student
+NATURAL JOIN takes
+JOIN course USING(course_id) 
+WHERE grade = 'A+' 
+  AND course.dept_name = 'Languages';
+     name     
+--------------
+ Abraham
+ Bhattacharya
+ Boldin
+ Carey
+ Cheah
+ Ching
+ Cochran
+ Damas
+ Denso
+ Ebou
+ Frangeu
+ Geißl
+ Hughes
+ Januszewski
+ Kirtane
+ Komori
+ Kwan
+ Macias
+ Masri
+ Nakajima
+ Oki
+ Oller
+ Palomo
+ Paniez
+ Patne
+ Pavlovico
+ Planti
+ Roses
+ Saill
+ Savolainen
+ Thimm
+ Vries
+ Wingb
+ Wood
+ Zafar
+(35 rows)
+
+Time: 38,694 ms
+
+-- 7
+(SELECT id 
+  FROM instructor 
+  WHERE dept_name = 'Marketing')
+EXCEPT 
+(SELECT id 
+  FROM teaches);
+  id   
+-------
+ 58558
+ 96895
+ 74426
+(3 rows)
+
+Time: 1,697 ms
+
+-- 8
+SELECT id, "name" 
+FROM instructor
+NATURAL LEFT JOIN teaches
+WHERE course_id IS NULL 
+  AND dept_name = 'Marketing';
+  id   |   name   
+-------+----------
+ 96895 | Mird
+ 74426 | Kenje
+ 58558 | Dusserre
+(3 rows)
+
+Time: 1,653 ms
+
+-- 9
+SELECT course_id, sec_id, semester, "year", COUNT(*) AS num 
+FROM takes
+NATURAL JOIN "section"
+GROUP BY course_id, sec_id, semester, "year"
+HAVING "year" = 2009;
+ course_id | sec_id | semester | year | num 
+-----------+--------+----------+------+-----
+ 105       | 1      | Fall     | 2009 | 327
+ 237       | 2      | Fall     | 2009 | 311
+ 304       | 1      | Fall     | 2009 | 307
+ 334       | 1      | Fall     | 2009 | 268
+ 486       | 1      | Fall     | 2009 | 304
+ 604       | 1      | Spring   | 2009 | 300
+ 960       | 1      | Fall     | 2009 | 307
+ 972       | 1      | Spring   | 2009 | 280
+(8 rows)
+
+Time: 8,433 ms
+
+-- 10
+WITH
+  takes_count AS
+    (SELECT COUNT(*) AS total 
+    FROM takes
+    GROUP BY course_id, sec_id, semester, "year")
+SELECT MAX(total), MIN(total) 
+FROM takes_count;
+ max | min 
+-----+-----
+ 338 | 264
+(1 row)
+
+Time: 16,977 ms
+
+-- 11
+WITH
+  takes_count AS
+    (SELECT course_id, sec_id, semester, "year", COUNT(*) AS total 
+    FROM takes
+    NATURAL JOIN "section"
+    GROUP BY course_id, sec_id, semester, "year"),
+  max_takes AS
+    (SELECT MAX(total) 
+    FROM takes_count)
+SELECT course_id, sec_id, semester, "year", total AS sum 
+FROM takes_count, max_takes
+WHERE total = "max";
+ course_id | sec_id | semester | year | sum 
+-----------+--------+----------+------+-----
+ 362       | 1      | Fall     | 2005 | 338
+ 192       | 1      | Fall     | 2002 | 338
+(2 rows)
+
+Time: 28,302 ms
+
+-- 12
+WITH
+  takes_count AS
+    (SELECT COUNT(id) AS total 
+    FROM takes
+    NATURAL RIGHT JOIN "section"
+    GROUP BY course_id, sec_id, semester, "year")
+SELECT MAX(total), MIN(total) 
+FROM takes_count;
+ max | min 
+-----+-----
+ 338 |   0
+(1 row)
+
+Time: 27,359 ms
+
+-- 13
+SELECT id, course_id, sec_id, semester, "year" 
+FROM teaches
+WHERE id = '19368';
+  id   | course_id | sec_id | semester | year 
+-------+-----------+--------+----------+------
+ 19368 | 581       | 1      | Spring   | 2005
+ 19368 | 545       | 1      | Fall     | 2001
+ 19368 | 591       | 1      | Spring   | 2005
+(3 rows)
+
+Time: 0,820 ms
+
+-- 14
+SELECT DISTINCT id 
+FROM teaches
+WHERE course_id IN (
+  SELECT course_id 
+  FROM teaches 
+  WHERE id = '19368');
+  id   
+-------
+ 19368
+ 41930
+(2 rows)
+
+Time: 0,883 ms
+
+-- 15
+INSERT INTO student (id, "name", dept_name, tot_cred)
+SELECT id, "name", dept_name, 0 AS tot_cerd 
+FROM instructor
+WHERE id NOT IN (
+  SELECT id 
+  FROM student);
+INSERT 0 47
+Time: 13,249 ms
+
+-- 16
+DELETE FROM student 
+WHERE id IN (
+    SELECT id 
+    FROM instructor)
+  AND tot_cred = 0;
+DELETE 47
+Time: 4,757 ms
+
+-- 17
+SELECT id, tot_cred, SUM(credits)
+FROM student 
+NATURAL JOIN takes 
+JOIN course USING(course_id)
+GROUP BY id
+HAVING tot_cred = SUM(credits);
+  id   | tot_cred | sum 
+-------+----------+-----
+ 30177 |       41 |  41
+ 38336 |       39 |  39
+ 39520 |       43 |  43
+ 14094 |       45 |  45
+ 8378  |       47 |  47
+ 48901 |       57 |  57
+ 54508 |       41 |  41
+ 41596 |       51 |  51
+ 44584 |       58 |  58
+ 16907 |       59 |  59
+ 29920 |       62 |  62
+ 61232 |       48 |  48
+ 57787 |       60 |  60
+ 67340 |       38 |  38
+ 63390 |       41 |  41
+(15 rows)
+
+Time: 23,258 ms
+
+-- 18
+UPDATE student AS s
+SET tot_cred = (
+    SELECT SUM(credits) 
+    FROM takes AS t
+    NATURAL JOIN course
+    WHERE s.id = t.id
+    GROUP BY id);
+UPDATE 2000
+Time: 476,717 ms
+
+-- 19
+SELECT id, tot_cred, SUM(credits)
+FROM student 
+NATURAL JOIN takes 
+JOIN course USING(course_id)
+GROUP BY id
+HAVING tot_cred != SUM(credits);
+ id | tot_cred | sum 
+----+----------+-----
+(0 rows)
+
+Time: 22,533 ms
+
+-- 20
+UPDATE instructor AS i
+SET salary = 29001 + 10000 * 
+  (SELECT COUNT(sec_id) 
+    FROM instructor AS i2
+    NATURAL LEFT JOIN teaches
+    NATURAL LEFT JOIN "section"
+    WHERE i.id = i2.id
+    GROUP BY id);
+UPDATE 50
+Time: 3,383 ms
+
+-- 21
+SELECT "name", salary 
+FROM instructor
+ORDER BY "name"
+LIMIT 10;
+   name    |  salary  
+-----------+----------
+ Arias     | 29001.00
+ Arinb     | 29001.00
+ Atanassov | 49001.00
+ Bancilhon | 29001.00
+ Bawa      | 39001.00
+ Bertolino | 29001.00
+ Bietzk    | 39001.00
+ Bondi     | 59001.00
+ Bourrier  | 49001.00
+ Choll     | 39001.00
+(10 rows)
+
+Time: 1,251 ms

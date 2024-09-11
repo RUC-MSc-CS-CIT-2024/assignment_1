@@ -101,7 +101,7 @@ WHERE id = '19368';
 -- 14
 SELECT DISTINCT id 
 FROM teaches
-WHERE course_id = SOME (
+WHERE course_id IN (
   SELECT course_id 
   FROM teaches 
   WHERE id = '19368');
@@ -116,7 +116,7 @@ WHERE id NOT IN (
 
 -- 16
 DELETE FROM student 
-WHERE id = SOME (
+WHERE id IN (
     SELECT id 
     FROM instructor)
   AND tot_cred = 0;
@@ -130,17 +130,13 @@ GROUP BY id
 HAVING tot_cred = SUM(credits);
 
 -- 18
-WITH
-  calc_total_cred AS
-    (SELECT id, SUM(credits) 
-    FROM takes
-    NATURAL JOIN course
-    GROUP BY id)
 UPDATE student AS s
 SET tot_cred = (
-  SELECT "sum" 
-  FROM calc_total_cred AS ctc 
-  WHERE ctc.id = s.id);
+    SELECT SUM(credits) 
+    FROM takes AS t
+    NATURAL JOIN course
+    WHERE s.id = t.id
+    GROUP BY id);
 
 -- 19
 SELECT id, tot_cred, SUM(credits)
@@ -151,19 +147,14 @@ GROUP BY id
 HAVING tot_cred != SUM(credits);
 
 -- 20
-WITH
-  taught_count AS
-    (SELECT id, COUNT(sec_id) 
-    FROM instructor
-    NATURAL LEFT JOIN teaches
-    NATURAL LEFT JOIN "section"
-    GROUP BY id)
 UPDATE instructor AS i
 SET salary = 29001 + 10000 * 
-  (SELECT tc."count" 
-  FROM taught_count AS tc 
-  WHERE i.id = tc.id);
-
+  (SELECT COUNT(sec_id) 
+    FROM instructor AS i2
+    NATURAL LEFT JOIN teaches
+    NATURAL LEFT JOIN "section"
+    WHERE i.id = i2.id
+    GROUP BY id);
 
 -- 21
 SELECT "name", salary 
