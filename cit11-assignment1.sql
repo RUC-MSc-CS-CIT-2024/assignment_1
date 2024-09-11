@@ -1,172 +1,159 @@
 \timing
--- GROUP: cit11, MEMBERS: Ida Hay Jørgensen, Julius Krüger Madsen, Marek Laslo, Sofus Hilfling Nielsen
--- 1
-SELECT "name" 
-FROM instructor 
-WHERE dept_name = 'Biology';
+-- GROUP: cit11 
+-- MEMBERS: 
+-- <Ida Hay Jørgensen	stud-ijoergense@ruc.dk> 
+-- <Julius Krüger Madsen	stud-juliusm@ruc.dk>
+-- <Marek Laslo	stud-laslo@ruc.dk> 
+-- <Sofus Hilfling Nielsen	stud-sofusn@ruc.dk>
 
--- 2
-SELECT title 
-FROM course 
-WHERE dept_name = 'Comp. Sci.' AND credits = 3;
 
--- 3
-SELECT DISTINCT course_id, title 
-FROM takes
-NATURAL JOIN course
-WHERE id = '30397';
+-- 1.
+select name from instructor where dept_name = 'Biology';
 
--- 4
-SELECT course_id, title, SUM(credits) 
-FROM takes
-NATURAL JOIN course
-WHERE id = '30397'
-GROUP BY course_id, title;
+-- 2.
+select title from course where credits = 3 and dept_name = 'Comp. Sci.';
 
--- 5
-SELECT id, SUM(credits) 
-FROM takes
-NATURAL JOIN course
-GROUP BY id
-HAVING SUM(credits) > 85;
+-- 3.
+select c.course_id, c.title from takes t join course c on t.course_id = c.course_id where t.id = '30397';
 
--- 6
-SELECT DISTINCT "name" 
-FROM student
-NATURAL JOIN takes
-JOIN course USING(course_id) 
-WHERE grade = 'A+' 
-  AND course.dept_name = 'Languages';
+-- 4.
+SELECT c.course_id, c.title, SUM(c.credits) AS sum FROM takes t JOIN course c ON t.course_id = c.course_id WHERE t.id = '30397' GROUP BY c.course_id, c.title;
 
--- 7
-(SELECT id 
-  FROM instructor 
-  WHERE dept_name = 'Marketing')
-EXCEPT 
-(SELECT id 
-  FROM teaches);
+-- 5.
+SELECT t.id, SUM(c.credits) AS sum FROM takes t JOIN course c ON t.course_id = c.course_id GROUP BY t.id HAVING SUM(c.credits) > 85;
 
--- 8
-SELECT id, "name" 
-FROM instructor
-NATURAL LEFT JOIN teaches
-WHERE course_id IS NULL 
-  AND dept_name = 'Marketing';
+-- 6.
+SELECT s.name FROM student s JOIN takes t ON s.id = t.id JOIN course c ON c.course_id = t.course_id WHERE t.grade = 'A+' AND c.dept_name = 'Languages';
 
--- 9
-SELECT course_id, sec_id, semester, "year", COUNT(*) AS num 
-FROM takes
-NATURAL JOIN "section"
-GROUP BY course_id, sec_id, semester, "year"
-HAVING "year" = 2009;
+-- 7.
+SELECT i.id FROM instructor i LEFT OUTER JOIN teaches t ON i.id = t.id WHERE t.id IS NULL;
 
--- 10
-WITH
-  takes_count AS
-    (SELECT COUNT(*) AS total 
+-- 8.
+SELECT i.id, i.name FROM instructor i LEFT OUTER JOIN teaches t ON i.id = t.id WHERE t.id IS NULL;
+
+-- 9.
+SELECT s.course_id, s.sec_id, s.semester, s.year, COUNT(t.ID) AS num FROM section s JOIN takes t ON s.course_id = t.course_id AND s.sec_id = t.sec_id AND s.year = t.year AND s.semester = t.semester WHERE s.year = '2009' GROUP BY s.course_id, s.sec_id, s.semester, s.year HAVING COUNT(t.ID) > 0;
+
+-- 10.
+WITH section_enrollment AS (
+    SELECT course_id, sec_id, semester, year, COUNT(id) AS num
     FROM takes
-    GROUP BY course_id, sec_id, semester, "year")
-SELECT MAX(total), MIN(total) 
-FROM takes_count;
+    GROUP BY course_id, sec_id, semester, year
+    HAVING COUNT(id) > 0
+)
+SELECT MAX(num), MIN(num)
+FROM section_enrollment;
 
--- 11
-WITH
-  takes_count AS
-    (SELECT course_id, sec_id, semester, "year", COUNT(*) AS total 
+-- 11.
+WITH section_enrollment AS (
+    SELECT course_id, sec_id, semester, year, COUNT(id) AS num
     FROM takes
-    NATURAL JOIN "section"
-    GROUP BY course_id, sec_id, semester, "year"),
-  max_takes AS
-    (SELECT MAX(total) 
-    FROM takes_count)
-SELECT course_id, sec_id, semester, "year", total AS sum 
-FROM takes_count, max_takes
-WHERE total = "max";
+    GROUP BY course_id, sec_id, semester, year
+)
+SELECT course_id, sec_id, semester, year, num
+FROM section_enrollment
+WHERE num = (SELECT MAX(num) FROM section_enrollment);
 
--- 12
-WITH
-  takes_count AS
-    (SELECT COUNT(id) AS total 
-    FROM takes
-    NATURAL RIGHT JOIN "section"
-    GROUP BY course_id, sec_id, semester, "year")
-SELECT MAX(total), MIN(total) 
-FROM takes_count;
+-- 12.
+WITH section_enrollment AS (
+    SELECT s.course_id, s.sec_id, s.semester, s.year, COUNT(t.id) AS num
+    FROM section s
+    LEFT JOIN takes t ON s.course_id = t.course_id AND s.sec_id = t.sec_id 
+                      AND s.semester = t.semester AND s.year = t.year
+    GROUP BY s.course_id, s.sec_id, s.semester, s.year
+)
+SELECT MAX(num), MIN(num)
+FROM section_enrollment;
 
--- 13
-SELECT id, course_id, sec_id, semester, "year" 
+-- 13.
+SELECT id, course_id, sec_id, semester, year
 FROM teaches
 WHERE id = '19368';
 
--- 14
-SELECT DISTINCT id 
-FROM teaches
-WHERE course_id = SOME (
-  SELECT course_id 
-  FROM teaches 
-  WHERE id = '19368');
+-- 14.
+WITH instructor_courses AS (
+    SELECT course_id, sec_id, semester, year
+    FROM teaches
+    WHERE id = '19368'
+)
+SELECT t.id
+FROM teaches t
+WHERE NOT EXISTS (
+    SELECT course_id, sec_id, semester, year
+    FROM instructor_courses
+    EXCEPT
+    SELECT course_id, sec_id, semester, year
+    FROM teaches t2
+    WHERE t.id = t2.id
+)
+GROUP BY t.id;
 
--- 15
-INSERT INTO student (id, "name", dept_name, tot_cred)
-SELECT id, "name", dept_name, 0 AS tot_cerd 
+-- 15.
+INSERT INTO student (id, name, dept_name, tot_cred)
+SELECT id, name, dept_name, 0
 FROM instructor
-WHERE id NOT IN (
-  SELECT id 
-  FROM student);
+WHERE id NOT IN (SELECT id FROM student);
 
--- 16
-DELETE FROM student 
-WHERE id = SOME (
-    SELECT id 
-    FROM instructor)
-  AND tot_cred = 0;
+-- 16.
+DELETE FROM student
+WHERE id IN (
+    SELECT id FROM instructor
+) AND tot_cred = 0 AND id NOT IN (
+    SELECT id FROM takes
+);
 
--- 17
-SELECT id, tot_cred, SUM(credits)
-FROM student 
-NATURAL JOIN takes 
-JOIN course USING(course_id)
-GROUP BY id
-HAVING tot_cred = SUM(credits);
+-- 17.
+WITH student_total_credits AS (
+    SELECT s.id, SUM(c.credits) AS sum_credits
+    FROM student s
+    JOIN takes t ON s.id = t.id
+    JOIN course c ON t.course_id = c.course_id
+    GROUP BY s.id
+)
+SELECT s.id, s.tot_cred, stc.sum_credits
+FROM student s
+JOIN student_total_credits stc ON s.id = stc.id
+WHERE s.tot_cred = stc.sum_credits;
 
--- 18
-WITH
-  calc_total_cred AS
-    (SELECT id, SUM(credits) 
-    FROM takes
-    NATURAL JOIN course
-    GROUP BY id)
-UPDATE student AS s
-SET tot_cred = (
-  SELECT "sum" 
-  FROM calc_total_cred AS ctc 
-  WHERE ctc.id = s.id);
+-- 18.
+WITH student_total_credits AS (
+    SELECT s.id, SUM(c.credits) AS sum_credits
+    FROM student s
+    JOIN takes t ON s.id = t.id
+    JOIN course c ON t.course_id = c.course_id
+    GROUP BY s.id
+)
+UPDATE student
+SET tot_cred = stc.sum_credits
+FROM student_total_credits stc
+WHERE student.id = stc.id;
 
--- 19
-SELECT id, tot_cred, SUM(credits)
-FROM student 
-NATURAL JOIN takes 
-JOIN course USING(course_id)
-GROUP BY id
-HAVING tot_cred != SUM(credits);
+-- 19.
+WITH student_total_credits AS (
+    SELECT s.id, SUM(c.credits) AS sum_credits
+    FROM student s
+    JOIN takes t ON s.id = t.id
+    JOIN course c ON t.course_id = c.course_id
+    GROUP BY s.id
+)
+SELECT s.id, s.tot_cred, stc.sum_credits
+FROM student s
+JOIN student_total_credits stc ON s.id = stc.id
+WHERE s.tot_cred <> stc.sum_credits;
 
--- 20
-WITH
-  taught_count AS
-    (SELECT id, COUNT(sec_id) 
-    FROM instructor
-    NATURAL LEFT JOIN teaches
-    NATURAL LEFT JOIN "section"
-    GROUP BY id)
-UPDATE instructor AS i
-SET salary = 29001 + 10000 * 
-  (SELECT tc."count" 
-  FROM taught_count AS tc 
-  WHERE i.id = tc.id);
+-- 20.
+WITH instructor_section_count AS (
+    SELECT id, COUNT(*) AS section_count
+    FROM teaches
+    GROUP BY id
+)
+UPDATE instructor
+SET salary = 29001 + (section_count * 10000)
+FROM instructor_section_count isc
+WHERE instructor.id = isc.id;
 
-
--- 21
-SELECT "name", salary 
+-- 21.
+SELECT id, name, salary
 FROM instructor
-ORDER BY "name"
+ORDER BY name
 LIMIT 10;
